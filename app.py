@@ -8,6 +8,7 @@ import numpy as np
 from datetime import datetime
 from PIL import Image
 import xlsxwriter
+import pytz
 
 # --- 1. KONFIGURASI & FUNGSI PEMBERSIH ---
 EXCEL_FILE = "database_meteran.xlsx"
@@ -67,7 +68,7 @@ def robust_extract_logic(text_list):
 st.set_page_config(page_title="Input Meteran", layout="wide")
 st.title("📟 Input Meteran - PT. Multi Bintang Indonesia")
 
-tab1, tab2 = st.tabs(["📸 Kamera HP", "📁 Galeri"])
+tab1, tab2 = st.tabs(["📸 Kamera", "📁 Galeri"])
 source_files = []
 
 with tab1:
@@ -79,6 +80,9 @@ with tab2:
     if file_input: source_files.extend(file_input)
 
 if source_files:
+    # Set zona waktu ke Jakarta (WIB)
+    tz_jkt = pytz.timezone('Asia/Jakarta')
+    waktu_sekarang = datetime.now(tz_jkt)
     if 'history' not in st.session_state: st.session_state.history = []
     new_entries = []
     for f in source_files:
