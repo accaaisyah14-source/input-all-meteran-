@@ -3,7 +3,7 @@ import pandas as pd
 import easyocr
 import cv2
 import os
-import resssssss
+import re
 import numpy as np
 from datetime import datetime
 from PIL import Image
