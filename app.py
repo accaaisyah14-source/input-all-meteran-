@@ -30,8 +30,6 @@ def load_ocr():
 reader = load_ocr()
 
 # --- 2. FUNGSI SIMPAN ---
-import time # Pastikan 'import time' ada di bagian paling atas kodingan kamu
-
 def save_with_image(df_final):
     max_retries = 5  # Mencoba ulang sampai 5 kali jika file sedang dipakai orang lain
     for attempt in range(max_retries):
@@ -123,6 +121,13 @@ if source_files:
                 img_path = os.path.join(UPLOAD_FOLDER, file_id)
                 with open(img_path, "wb") as sf: sf.write(f.getbuffer())
                 img_pil = Image.open(f)
+                # --- Kode Resize (Tambahan Baru) ---
+                max_width = 1000
+                if img_pil.width > max_width:
+                    w_percent = (max_width / float(img_pil.width))
+                    h_size = int((float(img_pil.height) * float(w_percent)))
+                    img_pil = img_pil.resize((max_width, h_size), Image.Resampling.LANCZOS)
+                img_pil.save(img_path, quality=80) 
                 processed = advanced_pre_process(np.array(img_pil))
                 res = reader.readtext(processed, detail=0)
                 angka = robust_extract_logic(res)
@@ -194,3 +199,4 @@ if os.path.exists(EXCEL_FILE):
                 df_db = df_db.drop(selected_rows.index)
                 save_with_image(df_db)
                 st.warning("Data berhasil dihapus!"); st.rerun()
+
