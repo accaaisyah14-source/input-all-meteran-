@@ -1,8 +1,0 @@
-streamlit
-pandas
-easyocr
-opencv-python-headless
-xlsxwriter
-pytz
-pillow
-openpyxl
