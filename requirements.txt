@@ -1,6 +1,6 @@
-streamlit==1.42.0
+streamlit
 pandas
-easyocr==1.7.1
+easyocr
 opencv-python-headless==4.8.0.74
 xlsxwriter
 pytz
