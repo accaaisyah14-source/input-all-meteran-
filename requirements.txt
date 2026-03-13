@@ -1,7 +1,7 @@
-streamlit
+streamlit==1.42.0
 pandas
-easyocr
-opencv-python-headless
+easyocr==1.7.1
+opencv-python-headless==4.8.0.74
 xlsxwriter
 pytz
 pillow
