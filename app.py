@@ -25,9 +25,10 @@ def clean_nan(val):
     return str(val)
 
 @st.cache_resource
-def load_ocr():
-    return easyocr.Reader(['en'], gpu=False)
-reader = load_ocr()
+def load_reader():
+    return easyocr.Reader(['en'])
+    
+reader = load_reader()
 
 # --- 2. FUNGSI SIMPAN ---
 import time # Pastikan 'import time' ada di bagian paling atas kodingan kamu
