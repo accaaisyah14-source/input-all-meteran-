@@ -170,10 +170,10 @@ if os.path.exists(EXCEL_FILE):
             if st.button("✅ KONFIRMASI & SIMPAN", use_container_width=True, type="primary"):
                 df_db['Nama Meteran'] = df_db['Nama Meteran'].astype(str)
                 
-                df_db.at[idx, 'Tanggal'] = adj_tgl.strftime("%d-%m-%Y")
-                df_db.at[idx, 'Jam'] = adj_jam
-                df_db.at[idx, 'Nama Meteran'] = adj_nama 
-                df_db.at[idx, 'Angka Meteran'] = adj_angka
+                df_db['Tanggal'] = df_db['Tanggal'].astype(str)
+                df_db['Jam'] = df_db['Jam'].astype(str)
+                df_db['Nama Meteran'] = df_db['Nama Meteran'].astype(str)
+                df_db['Angka Meteran'] = df_db['Angka Meteran'].astype(str)
                 save_with_image(df_db)
                 st.success(f"Data {adj_nama} Berhasil Diverifikasi!"); st.rerun()
 
