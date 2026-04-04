@@ -30,51 +30,24 @@ def load_reader():
 
 reader = load_reader()
 
-# 🔥 AI-LIKE DETECTION (AUTO CARI DISPLAY)
-def detect_display_area(img):
-    gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
-
-    blur = cv2.GaussianBlur(gray, (5,5), 0)
-    edges = cv2.Canny(blur, 50, 150)
-
-    contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-    max_area = 0
-    best_box = None
-
-    for cnt in contours:
-        x, y, w, h = cv2.boundingRect(cnt)
-        area = w * h
-
-        # filter bentuk display (horizontal rectangle)
-        if area > max_area and w > h and area > 5000:
-            max_area = area
-            best_box = (x, y, w, h)
-
-    if best_box:
-        x, y, w, h = best_box
-        return img[y:y+h, x:x+w]
-
-    # fallback (kalau gagal)
+# 🔥 CROP STABIL (khusus meter kamu)
+def crop_meter_area(img):
     h, w = img.shape[:2]
-    return img[int(h*0.3):int(h*0.7), int(w*0.1):int(w*0.9)]
+    return img[int(h*0.35):int(h*0.65), int(w*0.15):int(w*0.85)]
 
-# 🔥 PREPROCESS SUPER KUAT
+# 🔥 PREPROCESS PALING AKURAT
 def preprocess_meter(img):
     gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
 
-    clahe = cv2.createCLAHE(clipLimit=4.0, tileGridSize=(8,8))
+    # Kontras tinggi
+    clahe = cv2.createCLAHE(clipLimit=5.0, tileGridSize=(8,8))
     enhanced = clahe.apply(gray)
 
-    kernel = np.array([[0,-1,0],[-1,5,-1],[0,-1,0]])
-    sharp = cv2.filter2D(enhanced, -1, kernel)
+    # Blur ringan
+    blur = cv2.GaussianBlur(enhanced, (3,3), 0)
 
-    thresh = cv2.adaptiveThreshold(
-        sharp, 255,
-        cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
-        cv2.THRESH_BINARY,
-        11, 2
-    )
+    # Threshold fix (lebih stabil untuk display digital)
+    _, thresh = cv2.threshold(blur, 120, 255, cv2.THRESH_BINARY)
 
     return thresh
 
@@ -93,8 +66,7 @@ def extract_meter_value(texts):
 
     mapping = {
         'O':'0','D':'0','Q':'0',
-        'B':'8','S':'5','I':'1','L':'1',
-        'Z':'2','G':'6','A':'4'
+        'B':'8','S':'5','I':'1','L':'1'
     }
 
     for k,v in mapping.items():
@@ -105,16 +77,6 @@ def extract_meter_value(texts):
     matches = re.findall(r'\d{5,8}(?:\.\d{1,3})?', text)
 
     return max(matches, key=len) if matches else "Cek Foto"
-
-# 🔥 VALIDASI CERDAS
-def validate_meter(value):
-    try:
-        num = float(value)
-        if num < 1000:
-            return "Cek Foto"
-        return value
-    except:
-        return "Cek Foto"
 
 # ================= SAVE =================
 def save_data(df):
@@ -165,17 +127,15 @@ if files:
 
                 img_np = np.array(img)
 
-                # 🔥 AI DETECTION
-                crop = detect_display_area(img_np)
+                # 🔥 CROP STABIL
+                crop = crop_meter_area(img_np)
 
                 # 🔥 PREPROCESS
                 processed = preprocess_meter(crop)
 
                 # 🔥 OCR
                 texts = read_meter(processed)
-
                 angka = extract_meter_value(texts)
-                angka = validate_meter(angka)
 
             except Exception as e:
                 angka = "Error OCR"
