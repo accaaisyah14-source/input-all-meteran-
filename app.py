@@ -11,6 +11,8 @@ from PIL import Image
 import xlsxwriter
 import pytz
 
+st.set_page_config(page_title="Meteran App", initial_sidebar_state="collapsed")
+
 # --- 1. KONFIGURASI & ZONA WAKTU ---
 EXCEL_FILE = "database_meteran.xlsx"
 UPLOAD_FOLDER = "uploads"
@@ -29,6 +31,10 @@ def load_reader():
     return easyocr.Reader(['en'], gpu=False)
     
 reader = load_reader()
+# Tambahkan ini di app.py
+if 'reader' not in st.session_state:
+    st.session_state.reader = load_reader()
+reader = st.session_state.reader
 
 # --- 2. FUNGSI SIMPAN ---
 def save_with_image(df_final):
