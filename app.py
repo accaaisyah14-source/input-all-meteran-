@@ -11,7 +11,11 @@ from PIL import Image
 import xlsxwriter
 import pytz
 
-st.set_page_config(page_title="Meteran App", initial_sidebar_state="collapsed")
+st.set_page_config(
+    page_title="Input Flow Meter MBI",
+    layout="wide",
+    initial_sidebar_state="collapsed"
+)
 
 # --- 1. KONFIGURASI & ZONA WAKTU ---
 EXCEL_FILE = "database_meteran.xlsx"
@@ -88,7 +92,6 @@ def robust_extract_logic(text_list):
     return max(pattern, key=len) if pattern else "Cek Foto"
 
 # --- 4. UI APLIKASI ---
-st.set_page_config(page_title="Input Flow Meter MBI", layout="wide")
 
 # Sidebar untuk Backup Data
 st.sidebar.header("⚙️ Recording")
