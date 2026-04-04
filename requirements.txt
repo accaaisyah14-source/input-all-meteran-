@@ -1,8 +1,9 @@
-streamlit
+streamlit==1.33.0
 pandas
 easyocr
 opencv-python-headless
+Pillow
+numpy
+openpyxl
 xlsxwriter
 pytz
-pillow
-openpyxl
