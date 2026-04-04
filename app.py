@@ -31,8 +31,6 @@ def load_reader():
 reader = load_reader()
 
 # --- 2. FUNGSI SIMPAN ---
-import time # Pastikan 'import time' ada di bagian paling atas kodingan kamu
-
 def save_with_image(df_final):
     max_retries = 5  # Mencoba ulang sampai 5 kali jika file sedang dipakai orang lain
     for attempt in range(max_retries):
