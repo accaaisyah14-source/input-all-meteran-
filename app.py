@@ -30,6 +30,36 @@ def load_reader():
 
 reader = load_reader()
 
+# 🔥 AI-LIKE DETECTION (AUTO CARI DISPLAY)
+def detect_display_area(img):
+    gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
+
+    blur = cv2.GaussianBlur(gray, (5,5), 0)
+    edges = cv2.Canny(blur, 50, 150)
+
+    contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    max_area = 0
+    best_box = None
+
+    for cnt in contours:
+        x, y, w, h = cv2.boundingRect(cnt)
+        area = w * h
+
+        # filter bentuk display (horizontal rectangle)
+        if area > max_area and w > h and area > 5000:
+            max_area = area
+            best_box = (x, y, w, h)
+
+    if best_box:
+        x, y, w, h = best_box
+        return img[y:y+h, x:x+w]
+
+    # fallback (kalau gagal)
+    h, w = img.shape[:2]
+    return img[int(h*0.3):int(h*0.7), int(w*0.1):int(w*0.9)]
+
+# 🔥 PREPROCESS SUPER KUAT
 def preprocess_meter(img):
     gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
 
@@ -39,12 +69,27 @@ def preprocess_meter(img):
     kernel = np.array([[0,-1,0],[-1,5,-1],[0,-1,0]])
     sharp = cv2.filter2D(enhanced, -1, kernel)
 
-    _, thresh = cv2.threshold(sharp, 120, 255, cv2.THRESH_BINARY)
+    thresh = cv2.adaptiveThreshold(
+        sharp, 255,
+        cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+        cv2.THRESH_BINARY,
+        11, 2
+    )
 
     return thresh
 
-def extract_meter(text_list):
-    text = " ".join(text_list).upper()
+# 🔥 OCR KHUSUS ANGKA
+def read_meter(img):
+    return reader.readtext(
+        img,
+        detail=0,
+        allowlist='0123456789.',
+        paragraph=False
+    )
+
+# 🔥 FILTER HASIL OCR
+def extract_meter_value(texts):
+    text = " ".join(texts)
 
     mapping = {
         'O':'0','D':'0','Q':'0',
@@ -55,11 +100,21 @@ def extract_meter(text_list):
     for k,v in mapping.items():
         text = text.replace(k,v)
 
-    text = text.replace(",", "")
+    text = re.sub(r'[^0-9.]', '', text)
 
     matches = re.findall(r'\d{5,8}(?:\.\d{1,3})?', text)
 
     return max(matches, key=len) if matches else "Cek Foto"
+
+# 🔥 VALIDASI CERDAS
+def validate_meter(value):
+    try:
+        num = float(value)
+        if num < 1000:
+            return "Cek Foto"
+        return value
+    except:
+        return "Cek Foto"
 
 # ================= SAVE =================
 def save_data(df):
@@ -80,12 +135,12 @@ tab1, tab2 = st.tabs(["📸 Kamera", "📁 Upload"])
 files = []
 
 with tab1:
-    cam = st.camera_input("Ambil foto")
+    cam = st.camera_input("Ambil foto meteran")
     if cam:
         files.append(cam)
 
 with tab2:
-    upload = st.file_uploader("Upload gambar", type=['jpg','png','jpeg'], accept_multiple_files=True)
+    upload = st.file_uploader("Upload gambar", type=['jpg','jpeg','png'], accept_multiple_files=True)
     if upload:
         files.extend(upload)
 
@@ -108,12 +163,21 @@ if files:
                 path = os.path.join(UPLOAD_FOLDER, fname)
                 img.save(path)
 
-                processed = preprocess_meter(np.array(img))
-                result = reader.readtext(processed, detail=0)
+                img_np = np.array(img)
 
-                angka = extract_meter(result)
+                # 🔥 AI DETECTION
+                crop = detect_display_area(img_np)
 
-            except:
+                # 🔥 PREPROCESS
+                processed = preprocess_meter(crop)
+
+                # 🔥 OCR
+                texts = read_meter(processed)
+
+                angka = extract_meter_value(texts)
+                angka = validate_meter(angka)
+
+            except Exception as e:
                 angka = "Error OCR"
 
             new_data.append({
@@ -163,19 +227,19 @@ if os.path.exists(EXCEL_FILE):
             tgl = st.date_input("Tanggal", datetime.now(tz_jkt))
             jam = st.text_input("Jam", value=last['Jam'])
             nama = st.text_input("Nama Meteran", value=last['Nama Meteran'])
-            angka = st.text_input("Angka Meteran", value=last['Angka Meteran'])
+            angka = st.text_input("Angka Meteran (Edit jika salah)", value=last['Angka Meteran'])
 
-            if st.button("✅ SIMPAN"):
+            if st.button("✅ KONFIRMASI & SIMPAN"):
                 df.at[idx,'Tanggal'] = tgl.strftime("%d-%m-%Y")
                 df.at[idx,'Jam'] = jam
                 df.at[idx,'Nama Meteran'] = nama
                 df.at[idx,'Angka Meteran'] = angka
 
                 save_data(df)
-                st.success("Tersimpan!")
+                st.success("Data berhasil diverifikasi!")
                 st.rerun()
 
-        st.subheader("📊 Histori")
+        st.subheader("📊 Histori Pencatatan (Terbaru di Atas)")
 
         df_show = df.copy()
         df_show.insert(0,"Pilih",False)
@@ -190,8 +254,8 @@ if os.path.exists(EXCEL_FILE):
         pilih = edited[edited["Pilih"]==True]
 
         if not pilih.empty:
-            if st.button("🗑️ Hapus"):
+            if st.button(f"🗑️ Hapus {len(pilih)} Data"):
                 df = df.drop(pilih.index)
                 save_data(df)
-                st.warning("Dihapus")
+                st.warning("Data berhasil dihapus!")
                 st.rerun()
