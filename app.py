@@ -35,37 +35,6 @@ reader = load_reader()
 if 'reader' not in st.session_state:
     st.session_state.reader = load_reader()
 reader = st.session_state.reader
-
-st.title("📸 Input Meteran Utility")
-st.write("Silakan ambil foto angka pada meteran.")
-
-# Input Kamera
-foto = st.camera_input("Arahkan kamera ke angka")
-
-if foto:
-    # Buka foto
-    img = Image.open(foto)
-    st.image(img, caption="Foto Terambil", use_container_width=True)
-
-    # Proses OCR
-    with st.spinner("AI sedang membaca angka..."):
-        # Ubah gambar ke format yang dimengerti EasyOCR
-        img_np = np.array(img)
-        hasil_ocr = reader.readtext(img_np, detail=0)
-
-    # Tampilkan Hasil
-    if hasil_ocr:
-        angka_deteksi = hasil_ocr[0]
-        st.success(f"Angka Terdeteksi: **{angka_deteksi}**")
-        
-        # Input konfirmasi (takut AI salah baca)
-        konfirmasi = st.text_input("Konfirmasi Angka:", value=angka_deteksi)
-        
-        if st.button("Simpan Data"):
-            st.balloons()
-            st.success("Data berhasil disimpan (Mode Test)!")
-    else:
-        st.warning("cek foto.")
         
 # --- 2. FUNGSI SIMPAN ---
 def save_with_image(df_final):
