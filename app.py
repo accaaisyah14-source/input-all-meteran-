@@ -26,57 +26,44 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 # ================= OCR =================
 @st.cache_resource
 def load_reader():
-    return easyocr.Reader(['en'], gpu=False, verbose=False)
+    return easyocr.Reader(['en'], gpu=False)
 
 reader = load_reader()
 
-# 🔥 CROP STABIL (khusus meter kamu)
-def crop_meter_area(img):
-    h, w = img.shape[:2]
-    return img[int(h*0.35):int(h*0.65), int(w*0.15):int(w*0.85)]
+# 🔥 PREPROCESS VERSI AWAL (PALING STABIL)
+def advanced_pre_process(img_np):
+    gray = cv2.cvtColor(img_np, cv2.COLOR_RGB2GRAY)
 
-# 🔥 PREPROCESS PALING AKURAT
-def preprocess_meter(img):
-    gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
-
-    # Kontras tinggi
     clahe = cv2.createCLAHE(clipLimit=5.0, tileGridSize=(8,8))
     enhanced = clahe.apply(gray)
 
-    # Blur ringan
-    blur = cv2.GaussianBlur(enhanced, (3,3), 0)
+    return cv2.GaussianBlur(enhanced, (3, 3), 0)
 
-    # Threshold fix (lebih stabil untuk display digital)
-    _, thresh = cv2.threshold(blur, 120, 255, cv2.THRESH_BINARY)
+# 🔥 LOGIC OCR ASLI (YANG PALING AKURAT DI KASUSMU)
+def robust_extract_logic(text_list):
+    full_text = " ".join(text_list).upper()
 
-    return thresh
+    # hapus satuan
+    for unit in ["KWH", "KVARH", "M3/H", "M3", "KVAR"]:
+        full_text = full_text.replace(unit, "")
 
-# 🔥 OCR KHUSUS ANGKA
-def read_meter(img):
-    return reader.readtext(
-        img,
-        detail=0,
-        allowlist='0123456789.',
-        paragraph=False
-    )
-
-# 🔥 FILTER HASIL OCR
-def extract_meter_value(texts):
-    text = " ".join(texts)
-
+    # mapping karakter salah
     mapping = {
-        'O':'0','D':'0','Q':'0',
-        'B':'8','S':'5','I':'1','L':'1'
+        'O': '0', 'D': '0', 'Q': '0',
+        'B': '8', 'S': '5',
+        'I': '1', 'L': '1',
+        'T': '7', 'Z': '2',
+        'G': '6', 'A': '4'
     }
 
-    for k,v in mapping.items():
-        text = text.replace(k,v)
+    for k, v in mapping.items():
+        full_text = full_text.replace(k, v)
 
-    text = re.sub(r'[^0-9.]', '', text)
+    full_text = full_text.replace(",", ".")
 
-    matches = re.findall(r'\d{5,8}(?:\.\d{1,3})?', text)
+    pattern = re.findall(r'\d{5,8}(?:\.\d{1,3})?', full_text)
 
-    return max(matches, key=len) if matches else "Cek Foto"
+    return max(pattern, key=len) if pattern else "Cek Foto"
 
 # ================= SAVE =================
 def save_data(df):
@@ -125,19 +112,13 @@ if files:
                 path = os.path.join(UPLOAD_FOLDER, fname)
                 img.save(path)
 
-                img_np = np.array(img)
+                processed = advanced_pre_process(np.array(img))
 
-                # 🔥 CROP STABIL
-                crop = crop_meter_area(img_np)
+                result = reader.readtext(processed, detail=0)
 
-                # 🔥 PREPROCESS
-                processed = preprocess_meter(crop)
+                angka = robust_extract_logic(result)
 
-                # 🔥 OCR
-                texts = read_meter(processed)
-                angka = extract_meter_value(texts)
-
-            except Exception as e:
+            except:
                 angka = "Error OCR"
 
             new_data.append({
