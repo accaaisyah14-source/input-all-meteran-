@@ -170,6 +170,25 @@ if files:
 
             st.session_state.history.append(fname)
 
+    st.divider()
+st.subheader("🗑️ Hapus Data")
+
+if not df.empty:
+    df_reset = df.reset_index()
+
+    selected_index = st.selectbox(
+        "Pilih data yang ingin dihapus",
+        df_reset.index,
+        format_func=lambda x: f"{df_reset.loc[x,'Tanggal']} | {df_reset.loc[x,'Nama Meteran']} | {df_reset.loc[x,'Angka Meteran']}"
+    )
+
+    if st.button("❌ Hapus Data Ini"):
+        df = df.drop(selected_index)
+
+        save_data(df)
+        st.warning("Data berhasil dihapus!")
+        st.rerun()
+
     if new_data:
         df_new = pd.DataFrame(new_data)
 
