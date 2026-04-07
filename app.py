@@ -9,6 +9,7 @@ from datetime import datetime
 from PIL import Image
 import pytz
 import time
+import io
 
 # ================= CONFIG =================
 st.set_page_config(
@@ -59,7 +60,7 @@ def robust_extract_logic(text_list):
 
     return max(pattern, key=len) if pattern else "Cek Foto"
 
-# ================= SAVE EXCEL (FIX UTAMA) =================
+# ================= SAVE EXCEL (ADA GAMBAR) =================
 def save_data(df):
     import xlsxwriter
 
@@ -76,37 +77,34 @@ def save_data(df):
             workbook  = writer.book
             worksheet = writer.sheets['Data Meteran']
 
-            # HEADER FORMAT
+            # format header
             header_format = workbook.add_format({
                 'bold': True,
                 'align': 'center',
-                'valign': 'middle',
                 'border': 1
             })
 
             for col_num, value in enumerate(df_save.columns):
                 worksheet.write(0, col_num, value, header_format)
 
-            # LEBAR KOLOM
+            # lebar kolom
             worksheet.set_column(0, 0, 15)
             worksheet.set_column(1, 1, 10)
             worksheet.set_column(2, 2, 25)
             worksheet.set_column(3, 3, 20)
             worksheet.set_column(4, 4, 35)
 
-            # ================= MASUKKAN GAMBAR =================
+            # ================= GAMBAR =================
             for i, file_name in enumerate(df_save['Foto']):
                 row = i + 1
-                img_path = os.path.join(UPLOAD_FOLDER, str(file_name))
+                path = os.path.join(UPLOAD_FOLDER, str(file_name))
 
-                if os.path.exists(img_path):
+                if os.path.exists(path):
                     worksheet.set_row(row, 120)
 
-                    worksheet.insert_image(row, 4, img_path, {
+                    worksheet.insert_image(row, 4, path, {
                         'x_scale': 0.15,
-                        'y_scale': 0.15,
-                        'x_offset': 5,
-                        'y_offset': 5
+                        'y_scale': 0.15
                     })
 
             writer.close()
@@ -181,49 +179,29 @@ if files:
         else:
             df = df_new
 
-        if save_data(df):
-            st.success("Data tersimpan!")
-            st.rerun()
-        else:
-            st.error("Gagal simpan")
+        save_data(df)
+        st.success("Data tersimpan!")
+        st.rerun()
 
-# ================= VERIFIKASI =================
+# ================= TAMPIL DATA =================
 if os.path.exists(EXCEL_FILE):
     df = pd.read_excel(EXCEL_FILE, dtype=str)
 
     if not df.empty:
         st.divider()
-        st.header("🔍 Verifikasi Data Terakhir")
-
-        last = df.iloc[-1]
-        idx = df.index[-1]
-
-        col1, col2 = st.columns([1.2,1])
-
-        with col1:
-            img_path = os.path.join(UPLOAD_FOLDER, last['Foto'])
-            if os.path.exists(img_path):
-                st.image(img_path, width=400)
-
-        with col2:
-            tgl = st.date_input("Tanggal", datetime.now(tz_jkt))
-            jam = st.text_input("Jam", value=last['Jam'])
-            nama = st.text_input("Nama Meteran", value=last['Nama Meteran'])
-            angka = st.text_input("Angka Meteran (Edit jika salah)", value=last['Angka Meteran'])
-
-            if st.button("✅ KONFIRMASI & SIMPAN"):
-                df.at[idx,'Tanggal'] = tgl.strftime("%d-%m-%Y")
-                df.at[idx,'Jam'] = jam
-                df.at[idx,'Nama Meteran'] = nama
-                df.at[idx,'Angka Meteran'] = angka
-
-                save_data(df)
-                st.success("Data berhasil diverifikasi!")
-                st.rerun()
-
         st.subheader("📊 Histori Pencatatan")
 
-        st.dataframe(
-            df.iloc[::-1],
-            use_container_width=True
+        st.dataframe(df.iloc[::-1], use_container_width=True)
+
+        # ================= DOWNLOAD EXCEL (BENER) =================
+        output = io.BytesIO()
+
+        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+            df.to_excel(writer, index=False)
+
+        st.download_button(
+            label="📥 Download Excel",
+            data=output.getvalue(),
+            file_name="data_meteran.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
