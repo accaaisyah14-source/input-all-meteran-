@@ -67,12 +67,60 @@ def robust_extract_logic(text_list):
 
 # ================= SAVE =================
 def save_data(df):
+    import xlsxwriter
+
     for _ in range(3):
         try:
-            df.to_excel(EXCEL_FILE, index=False)
+            kolom = ["Tanggal", "Jam", "Nama Meteran", "Angka Meteran", "Foto"]
+            df_save = df[kolom].copy()
+
+            df_save["Angka Meteran"] = df_save["Angka Meteran"].astype(str)
+
+            writer = pd.ExcelWriter(EXCEL_FILE, engine='xlsxwriter')
+            df_save.to_excel(writer, index=False, sheet_name='Data Meteran')
+
+            workbook  = writer.book
+            worksheet = writer.sheets['Data Meteran']
+
+            # Header format
+            header_format = workbook.add_format({
+                'bold': True,
+                'align': 'center',
+                'valign': 'middle',
+                'border': 1
+            })
+
+            for col_num, value in enumerate(df_save.columns):
+                worksheet.write(0, col_num, value, header_format)
+
+            # Lebar kolom
+            worksheet.set_column(0, 0, 15)
+            worksheet.set_column(1, 1, 10)
+            worksheet.set_column(2, 2, 25)
+            worksheet.set_column(3, 3, 20)
+            worksheet.set_column(4, 4, 35)
+
+            # Insert gambar
+            for i, file_name in enumerate(df_save['Foto']):
+                row = i + 1
+                path = os.path.join(UPLOAD_FOLDER, str(file_name))
+
+                if os.path.exists(path):
+                    worksheet.set_row(row, 120)
+
+                    worksheet.insert_image(row, 4, path, {
+                        'x_scale': 0.15,
+                        'y_scale': 0.15,
+                        'x_offset': 5,
+                        'y_offset': 5
+                    })
+
+            writer.close()
             return True
+
         except:
             time.sleep(1)
+
     return False
 
 # ================= UI =================
@@ -180,19 +228,12 @@ if os.path.exists(EXCEL_FILE):
                 st.success("Data berhasil diverifikasi!")
                 st.rerun()
 
-        st.subheader("📊 Histori Pencatatan (Terbaru di Atas)")
+    st.subheader("📊 Histori Pencatatan")
 
-        df_show = df.copy()
-        df_show.insert(0,"Pilih",False)
-
-        edited = st.data_editor(
-            df_show.iloc[::-1],
-            column_config={"Pilih": st.column_config.CheckboxColumn()},
-            disabled=["Tanggal","Jam","Nama Meteran","Angka Meteran","Foto"],
-            use_container_width=True
-        )
-
-        pilih = edited[edited["Pilih"]==True]
+st.dataframe(
+    df.iloc[::-1],
+    use_container_width=True
+)
 
         if not pilih.empty:
             if st.button(f"🗑️ Hapus {len(pilih)} Data"):
