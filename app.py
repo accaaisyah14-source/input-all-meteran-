@@ -235,9 +235,21 @@ st.dataframe(
     use_container_width=True
 )
 
-        if not pilih.empty:
-            if st.button(f"🗑️ Hapus {len(pilih)} Data"):
-                df = df.drop(pilih.index)
-                save_data(df)
-                st.warning("Data berhasil dihapus!")
-                st.rerun()
+st.subheader("🗑️ Hapus Data")
+
+if not df.empty:
+    # tampilkan index + info
+    df_reset = df.reset_index()
+
+    selected_index = st.selectbox(
+        "Pilih data yang ingin dihapus",
+        df_reset.index,
+        format_func=lambda x: f"{df_reset.loc[x,'Tanggal']} | {df_reset.loc[x,'Nama Meteran']} | {df_reset.loc[x,'Angka Meteran']}"
+    )
+
+    if st.button("❌ Hapus Data Ini"):
+        df = df.drop(selected_index)
+
+        save_data(df)
+        st.warning("Data berhasil dihapus!")
+        st.rerun()
