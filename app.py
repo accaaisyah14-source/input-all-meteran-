@@ -60,7 +60,7 @@ def robust_extract_logic(text_list):
 
     return max(pattern, key=len) if pattern else "Cek Foto"
 
-# ================= SAVE EXCEL (ADA GAMBAR) =================
+# ================= SAVE EXCEL =================
 def save_data(df):
     import xlsxwriter
 
@@ -77,7 +77,7 @@ def save_data(df):
             workbook  = writer.book
             worksheet = writer.sheets['Data Meteran']
 
-            # format header
+            # header format
             header_format = workbook.add_format({
                 'bold': True,
                 'align': 'center',
@@ -87,21 +87,20 @@ def save_data(df):
             for col_num, value in enumerate(df_save.columns):
                 worksheet.write(0, col_num, value, header_format)
 
-            # lebar kolom
+            # column width
             worksheet.set_column(0, 0, 15)
             worksheet.set_column(1, 1, 10)
             worksheet.set_column(2, 2, 25)
             worksheet.set_column(3, 3, 20)
             worksheet.set_column(4, 4, 35)
 
-            # ================= GAMBAR =================
+            # insert image
             for i, file_name in enumerate(df_save['Foto']):
                 row = i + 1
                 path = os.path.join(UPLOAD_FOLDER, str(file_name))
 
                 if os.path.exists(path):
                     worksheet.set_row(row, 120)
-
                     worksheet.insert_image(row, 4, path, {
                         'x_scale': 0.15,
                         'y_scale': 0.15
@@ -170,25 +169,6 @@ if files:
 
             st.session_state.history.append(fname)
 
-    st.divider()
-st.subheader("🗑️ Hapus Data")
-
-if not df.empty:
-    df_reset = df.reset_index()
-
-    selected_index = st.selectbox(
-        "Pilih data yang ingin dihapus",
-        df_reset.index,
-        format_func=lambda x: f"{df_reset.loc[x,'Tanggal']} | {df_reset.loc[x,'Nama Meteran']} | {df_reset.loc[x,'Angka Meteran']}"
-    )
-
-    if st.button("❌ Hapus Data Ini"):
-        df = df.drop(selected_index)
-
-        save_data(df)
-        st.warning("Data berhasil dihapus!")
-        st.rerun()
-
     if new_data:
         df_new = pd.DataFrame(new_data)
 
@@ -212,9 +192,28 @@ if os.path.exists(EXCEL_FILE):
 
         st.dataframe(df.iloc[::-1], use_container_width=True)
 
-        # ================= DOWNLOAD EXCEL (BENER) =================
-        output = io.BytesIO()
+        # ================= HAPUS DATA =================
+        st.divider()
+        st.subheader("🗑️ Hapus Data")
 
+        df_reset = df.reset_index()
+
+        selected_index = st.selectbox(
+            "Pilih data",
+            df_reset.index,
+            format_func=lambda x: f"{df_reset.loc[x,'Tanggal']} | {df_reset.loc[x,'Nama Meteran']} | {df_reset.loc[x,'Angka Meteran']}"
+        )
+
+        if st.button("❌ Hapus Data"):
+            df = df.drop(selected_index)
+            save_data(df)
+            st.warning("Data berhasil dihapus!")
+            st.rerun()
+
+        # ================= DOWNLOAD EXCEL =================
+        st.divider()
+
+        output = io.BytesIO()
         with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
             df.to_excel(writer, index=False)
 
