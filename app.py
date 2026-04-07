@@ -30,24 +30,18 @@ def load_reader():
 
 reader = load_reader()
 
-# 🔥 PREPROCESS VERSI AWAL (PALING STABIL)
 def advanced_pre_process(img_np):
     gray = cv2.cvtColor(img_np, cv2.COLOR_RGB2GRAY)
-
     clahe = cv2.createCLAHE(clipLimit=5.0, tileGridSize=(8,8))
     enhanced = clahe.apply(gray)
-
     return cv2.GaussianBlur(enhanced, (3, 3), 0)
 
-# 🔥 LOGIC OCR ASLI (YANG PALING AKURAT DI KASUSMU)
 def robust_extract_logic(text_list):
     full_text = " ".join(text_list).upper()
 
-    # hapus satuan
     for unit in ["KWH", "KVARH", "M3/H", "M3", "KVAR"]:
         full_text = full_text.replace(unit, "")
 
-    # mapping karakter salah
     mapping = {
         'O': '0', 'D': '0', 'Q': '0',
         'B': '8', 'S': '5',
@@ -65,7 +59,7 @@ def robust_extract_logic(text_list):
 
     return max(pattern, key=len) if pattern else "Cek Foto"
 
-# ================= SAVE =================
+# ================= SAVE EXCEL (FIX UTAMA) =================
 def save_data(df):
     import xlsxwriter
 
@@ -82,7 +76,7 @@ def save_data(df):
             workbook  = writer.book
             worksheet = writer.sheets['Data Meteran']
 
-            # Header format
+            # HEADER FORMAT
             header_format = workbook.add_format({
                 'bold': True,
                 'align': 'center',
@@ -93,22 +87,22 @@ def save_data(df):
             for col_num, value in enumerate(df_save.columns):
                 worksheet.write(0, col_num, value, header_format)
 
-            # Lebar kolom
+            # LEBAR KOLOM
             worksheet.set_column(0, 0, 15)
             worksheet.set_column(1, 1, 10)
             worksheet.set_column(2, 2, 25)
             worksheet.set_column(3, 3, 20)
             worksheet.set_column(4, 4, 35)
 
-            # Insert gambar
+            # ================= MASUKKAN GAMBAR =================
             for i, file_name in enumerate(df_save['Foto']):
                 row = i + 1
-                path = os.path.join(UPLOAD_FOLDER, str(file_name))
+                img_path = os.path.join(UPLOAD_FOLDER, str(file_name))
 
-                if os.path.exists(path):
+                if os.path.exists(img_path):
                     worksheet.set_row(row, 120)
 
-                    worksheet.insert_image(row, 4, path, {
+                    worksheet.insert_image(row, 4, img_path, {
                         'x_scale': 0.15,
                         'y_scale': 0.15,
                         'x_offset': 5,
@@ -161,7 +155,6 @@ if files:
                 img.save(path)
 
                 processed = advanced_pre_process(np.array(img))
-
                 result = reader.readtext(processed, detail=0)
 
                 angka = robust_extract_logic(result)
@@ -228,28 +221,9 @@ if os.path.exists(EXCEL_FILE):
                 st.success("Data berhasil diverifikasi!")
                 st.rerun()
 
-    st.subheader("📊 Histori Pencatatan")
+        st.subheader("📊 Histori Pencatatan")
 
-st.dataframe(
-    df.iloc[::-1],
-    use_container_width=True
-)
-
-st.subheader("🗑️ Hapus Data")
-
-if not df.empty:
-    # tampilkan index + info
-    df_reset = df.reset_index()
-
-    selected_index = st.selectbox(
-        "Pilih data yang ingin dihapus",
-        df_reset.index,
-        format_func=lambda x: f"{df_reset.loc[x,'Tanggal']} | {df_reset.loc[x,'Nama Meteran']} | {df_reset.loc[x,'Angka Meteran']}"
-    )
-
-    if st.button("❌ Hapus Data Ini"):
-        df = df.drop(selected_index)
-
-        save_data(df)
-        st.warning("Data berhasil dihapus!")
-        st.rerun()
+        st.dataframe(
+            df.iloc[::-1],
+            use_container_width=True
+        )
