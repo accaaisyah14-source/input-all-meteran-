@@ -10,6 +10,10 @@ from PIL import Image
 import pytz
 import time
 import io
+import ssl
+
+# ================= ANTI SSL ERROR =================
+ssl._create_default_https_context = ssl._create_unverified_context
 
 # ================= CONFIG =================
 st.set_page_config(
@@ -44,18 +48,17 @@ def robust_extract_logic(text_list):
         full_text = full_text.replace(unit, "")
 
     mapping = {
-        'O': '0', 'D': '0', 'Q': '0',
-        'B': '8', 'S': '5',
-        'I': '1', 'L': '1',
-        'T': '7', 'Z': '2',
-        'G': '6', 'A': '4'
+        'O': '0','D': '0','Q': '0',
+        'B': '8','S': '5',
+        'I': '1','L': '1',
+        'T': '7','Z': '2',
+        'G': '6','A': '4'
     }
 
     for k, v in mapping.items():
         full_text = full_text.replace(k, v)
 
     full_text = full_text.replace(",", ".")
-
     pattern = re.findall(r'\d{5,8}(?:\.\d{1,3})?', full_text)
 
     return max(pattern, key=len) if pattern else "Cek Foto"
@@ -66,45 +69,26 @@ def save_data(df):
 
     for _ in range(3):
         try:
-            kolom = ["Tanggal", "Jam", "Nama Meteran", "Angka Meteran", "Foto"]
+            kolom = ["Tanggal","Jam","Nama Meteran","Angka Meteran","Foto"]
             df_save = df[kolom].copy()
 
-            df_save["Angka Meteran"] = df_save["Angka Meteran"].astype(str)
-
             writer = pd.ExcelWriter(EXCEL_FILE, engine='xlsxwriter')
-            df_save.to_excel(writer, index=False, sheet_name='Data Meteran')
+            df_save.to_excel(writer, index=False, sheet_name='Data')
 
             workbook  = writer.book
-            worksheet = writer.sheets['Data Meteran']
+            worksheet = writer.sheets['Data']
 
-            # header format
-            header_format = workbook.add_format({
-                'bold': True,
-                'align': 'center',
-                'border': 1
-            })
-
+            header = workbook.add_format({'bold':True,'border':1})
             for col_num, value in enumerate(df_save.columns):
-                worksheet.write(0, col_num, value, header_format)
+                worksheet.write(0, col_num, value, header)
 
-            # column width
-            worksheet.set_column(0, 0, 15)
-            worksheet.set_column(1, 1, 10)
-            worksheet.set_column(2, 2, 25)
-            worksheet.set_column(3, 3, 20)
-            worksheet.set_column(4, 4, 35)
+            worksheet.set_column(0,4,25)
 
-            # insert image
             for i, file_name in enumerate(df_save['Foto']):
-                row = i + 1
                 path = os.path.join(UPLOAD_FOLDER, str(file_name))
-
                 if os.path.exists(path):
-                    worksheet.set_row(row, 120)
-                    worksheet.insert_image(row, 4, path, {
-                        'x_scale': 0.15,
-                        'y_scale': 0.15
-                    })
+                    worksheet.set_row(i+1,120)
+                    worksheet.insert_image(i+1,4,path,{'x_scale':0.2,'y_scale':0.2})
 
             writer.close()
             return True
@@ -116,9 +100,8 @@ def save_data(df):
 
 # ================= UI =================
 st.title("📟 Flow Meter Recording")
-st.write(f"🕒 {datetime.now(tz_jkt).strftime('%d-%m-%Y %H:%M:%S')} WIB")
 
-tab1, tab2 = st.tabs(["📸 Kamera", "📁 Upload"])
+tab1, tab2 = st.tabs(["📸 Kamera","📁 Upload"])
 
 files = []
 
@@ -134,55 +117,67 @@ with tab2:
 
 # ================= PROCESS =================
 if files:
-    if 'history' not in st.session_state:
-        st.session_state.history = []
-
-    new_data = []
     now = datetime.now(tz_jkt)
 
     for f in files:
-        fname = f.name if hasattr(f,'name') else f"{now.timestamp()}.jpg"
+        try:
+            fname = f.name if hasattr(f,'name') else f"{int(time.time())}.jpg"
 
-        if fname not in st.session_state.history:
-            try:
-                img = Image.open(f)
-                img = img.resize((800,800))
+            img = Image.open(f)
+            img = img.resize((800,800))
 
-                path = os.path.join(UPLOAD_FOLDER, fname)
-                img.save(path)
+            path = os.path.join(UPLOAD_FOLDER, fname)
+            img.save(path)
 
-                processed = advanced_pre_process(np.array(img))
-                result = reader.readtext(processed, detail=0)
+            processed = advanced_pre_process(np.array(img))
+            result = reader.readtext(processed, detail=0)
+            angka = robust_extract_logic(result)
 
-                angka = robust_extract_logic(result)
+        except:
+            angka = "Error OCR"
 
-            except:
-                angka = "Error OCR"
+        st.divider()
 
-            new_data.append({
-                "Tanggal": now.strftime("%d-%m-%Y"),
-                "Jam": now.strftime("%H:%M"),
-                "Nama Meteran": "",
-                "Angka Meteran": str(angka),
-                "Foto": fname
-            })
+        col1, col2 = st.columns([1,1])
 
-            st.session_state.history.append(fname)
+        with col1:
+            st.image(img, caption="Foto Meteran")
 
-    if new_data:
-        df_new = pd.DataFrame(new_data)
+        with col2:
+            tanggal = st.text_input("Tanggal", value=now.strftime("%d-%m-%Y"), key=f"tgl_{fname}")
+            jam = st.text_input("Jam", value=now.strftime("%H:%M"), key=f"jam_{fname}")
+            nama = st.text_input("Nama Meteran", key=f"nama_{fname}")
 
-        if os.path.exists(EXCEL_FILE):
-            df_old = pd.read_excel(EXCEL_FILE, dtype=str)
-            df = pd.concat([df_old, df_new], ignore_index=True)
-        else:
-            df = df_new
+            angka_final = st.text_input(
+                "Angka Meteran (Edit jika salah)",
+                value=str(angka),
+                key=f"angka_{fname}"
+            )
 
-        save_data(df)
-        st.success("Data tersimpan!")
-        st.rerun()
+            if st.button("✅ KONFIRMASI & SIMPAN", key=f"save_{fname}"):
 
-# ================= TAMPIL DATA =================
+                if nama.strip() == "":
+                    st.warning("Nama meteran wajib diisi!")
+                else:
+                    data_baru = pd.DataFrame([{
+                        "Tanggal": tanggal,
+                        "Jam": jam,
+                        "Nama Meteran": nama,
+                        "Angka Meteran": angka_final,
+                        "Foto": fname
+                    }])
+
+                    if os.path.exists(EXCEL_FILE):
+                        df_old = pd.read_excel(EXCEL_FILE, dtype=str)
+                        df = pd.concat([df_old, data_baru], ignore_index=True)
+                    else:
+                        df = data_baru
+
+                    save_data(df)
+                    st.success("Data tersimpan!")
+                    st.rerun()
+
+# ================= HISTORI =================
 if os.path.exists(EXCEL_FILE):
     df = pd.read_excel(EXCEL_FILE, dtype=str)
 
@@ -192,34 +187,38 @@ if os.path.exists(EXCEL_FILE):
 
         st.dataframe(df.iloc[::-1], use_container_width=True)
 
-        # ================= HAPUS DATA =================
+        # preview foto
+        for i, row in df.iloc[::-1].iterrows():
+            with st.expander(f"{row['Tanggal']} | {row['Nama Meteran']}"):
+                path = os.path.join(UPLOAD_FOLDER, row["Foto"])
+                if os.path.exists(path):
+                    st.image(path, width=300)
+
+        # hapus data
         st.divider()
         st.subheader("🗑️ Hapus Data")
 
-        df_reset = df.reset_index()
-
-        selected_index = st.selectbox(
+        idx = st.selectbox(
             "Pilih data",
-            df_reset.index,
-            format_func=lambda x: f"{df_reset.loc[x,'Tanggal']} | {df_reset.loc[x,'Nama Meteran']} | {df_reset.loc[x,'Angka Meteran']}"
+            df.index,
+            format_func=lambda x: f"{df.loc[x,'Tanggal']} | {df.loc[x,'Nama Meteran']} | {df.loc[x,'Angka Meteran']}"
         )
 
         if st.button("❌ Hapus Data"):
-            df = df.drop(selected_index)
+            df = df.drop(idx)
             save_data(df)
-            st.warning("Data berhasil dihapus!")
+            st.warning("Data dihapus!")
             st.rerun()
 
-        # ================= DOWNLOAD EXCEL =================
+        # download
         st.divider()
-
         output = io.BytesIO()
+
         with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
             df.to_excel(writer, index=False)
 
         st.download_button(
-            label="📥 Download Excel",
+            "📥 Download Excel",
             data=output.getvalue(),
-            file_name="data_meteran.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            file_name="data_meteran.xlsx"
         )
