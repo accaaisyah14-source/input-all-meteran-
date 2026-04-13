@@ -170,4 +170,47 @@ if files:
         st.error(f"Error: {e}")
         st.stop()
                 # ================= VALIDASI =================
-               
+               # ================= TAMPIL DATA =================
+if os.path.exists(EXCEL_FILE):
+    df = pd.read_excel(EXCEL_FILE, dtype=str)
+
+    if not df.empty:
+        st.divider()
+        st.subheader("📊 Histori Pencatatan")
+
+        st.dataframe(df.iloc[::-1], use_container_width=True)
+
+        # ================= HAPUS DATA =================
+        st.divider()
+        st.subheader("🗑️ Hapus Data")
+
+        df_reset = df.reset_index()
+
+        selected_index = st.selectbox(
+            "Pilih data",
+            df_reset.index,
+            format_func=lambda x: f"{df_reset.loc[x,'Tanggal']} | {df_reset.loc[x,'Nama Meteran']} | {df_reset.loc[x,'Angka Meteran']}"
+        )
+
+        if st.button("❌ Hapus Data"):
+            try:
+                df = df.drop(selected_index)
+                save_data(df)
+                st.warning("Data berhasil dihapus!")
+                st.rerun()
+            except Exception as e:
+                st.error(f"Gagal hapus: {e}")
+
+        # ================= DOWNLOAD EXCEL =================
+        st.divider()
+
+        output = io.BytesIO()
+        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+            df.to_excel(writer, index=False)
+
+        st.download_button(
+            label="📥 Download Excel",
+            data=output.getvalue(),
+            file_name="data_meteran.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
