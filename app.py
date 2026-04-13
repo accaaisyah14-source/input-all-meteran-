@@ -16,7 +16,11 @@ import ssl
 ssl._create_default_https_context = ssl._create_unverified_context
 
 # ================= CONFIG =================
-st.set_page_config(page_title="Input Flow Meter MBI", layout="wide")
+st.set_page_config(
+    page_title="Input Flow Meter MBI",
+    layout="wide",
+    initial_sidebar_state="collapsed"
+)
 
 EXCEL_FILE = "database_meteran.xlsx"
 UPLOAD_FOLDER = "uploads"
@@ -25,21 +29,16 @@ tz_jkt = pytz.timezone('Asia/Jakarta')
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 # ================= SESSION =================
-if "saved" not in st.session_state:
-    st.session_state.saved = False
+if "last_saved" not in st.session_state:
+    st.session_state.last_saved = None
 
 # ================= OCR =================
 @st.cache_resource
 def load_reader():
     return easyocr.Reader(['en'], gpu=False)
 
-try:
-    reader = load_reader()
-except:
-    st.error("❌ OCR gagal load")
-    st.stop()
+reader = load_reader()
 
-# ================= OCR LOGIC (TIDAK DIUBAH) =================
 def advanced_pre_process(img_np):
     gray = cv2.cvtColor(img_np, cv2.COLOR_RGB2GRAY)
     clahe = cv2.createCLAHE(clipLimit=5.0, tileGridSize=(8,8))
@@ -48,10 +47,18 @@ def advanced_pre_process(img_np):
 
 def robust_extract_logic(text_list):
     full_text = " ".join(text_list).upper()
+
     for unit in ["KWH","KVARH","M3/H","M3","KVAR"]:
         full_text = full_text.replace(unit,"")
 
-    mapping = {'O':'0','D':'0','Q':'0','B':'8','S':'5','I':'1','L':'1','T':'7','Z':'2','G':'6','A':'4'}
+    mapping = {
+        'O':'0','D':'0','Q':'0',
+        'B':'8','S':'5',
+        'I':'1','L':'1',
+        'T':'7','Z':'2',
+        'G':'6','A':'4'
+    }
+
     for k,v in mapping.items():
         full_text = full_text.replace(k,v)
 
@@ -60,15 +67,22 @@ def robust_extract_logic(text_list):
 
     return max(pattern, key=len) if pattern else "Cek Foto"
 
-# ================= SAVE (ANTI GAGAL) =================
-def save_data(df):
-    for _ in range(5):
-        try:
-            df.to_excel(EXCEL_FILE, index=False)
-            return True
-        except:
-            time.sleep(1)
-    return False
+# ================= SAVE (MULTI USER SAFE) =================
+def save_with_lock(df):
+    lock_file = EXCEL_FILE + ".lock"
+
+    while os.path.exists(lock_file):
+        time.sleep(0.3)
+
+    try:
+        open(lock_file, "w").close()
+
+        with pd.ExcelWriter(EXCEL_FILE, engine='xlsxwriter') as writer:
+            df.to_excel(writer, index=False)
+
+    finally:
+        if os.path.exists(lock_file):
+            os.remove(lock_file)
 
 # ================= UI =================
 st.title("📟 Flow Meter Recording")
@@ -100,7 +114,6 @@ if files:
             path = os.path.join(UPLOAD_FOLDER, fname)
             img.save(path)
 
-            # ⚡ OCR langsung (lebih cepat)
             result = reader.readtext(np.array(img), detail=0)
             angka = robust_extract_logic(result)
 
@@ -120,59 +133,61 @@ if files:
             nama = st.text_input("Nama Meteran", key=f"nama_{fname}")
 
             angka_final = st.text_input(
-                "Angka Meteran",
+                "Angka Meteran (Edit jika salah)",
                 value=str(angka),
                 key=f"angka_{fname}"
             )
 
-            save_clicked = st.button("✅ SIMPAN", key=f"save_{fname}")
+            if st.button("✅ KONFIRMASI & SIMPAN", key=f"save_{fname}"):
 
-    # VALIDASI
-    if nama.strip() == "":
-        st.warning("Nama meteran wajib diisi!")
-        st.stop()
+                # VALIDASI
+                if nama.strip() == "":
+                    st.warning("Nama meteran wajib diisi!")
+                    st.stop()
 
-    if angka_final.strip() == "":
-        st.warning("Angka kosong!")
-        st.stop()
+                if angka_final.strip() == "":
+                    st.warning("Angka kosong!")
+                    st.stop()
 
-    if not angka_final.replace('.', '').isdigit():
-        st.warning("Format angka salah!")
-        st.stop()
+                if not angka_final.replace('.', '').isdigit():
+                    st.warning("Format angka salah!")
+                    st.stop()
 
-    try:
-        data_baru = pd.DataFrame([{
-            "Tanggal": tanggal,
-            "Jam": jam,
-            "Nama Meteran": nama,
-            "Angka Meteran": angka_final,
-            "Foto": fname
-        }])
+                unique_key = f"{tanggal}_{jam}_{nama}_{angka_final}"
 
-        if os.path.exists(EXCEL_FILE):
-            df_old = pd.read_excel(EXCEL_FILE, dtype=str)
-        else:
-            df_old = pd.DataFrame()
+                if st.session_state.last_saved == unique_key:
+                    st.warning("Data sudah tersimpan!")
+                    st.stop()
 
-        df = pd.concat([df_old, data_baru], ignore_index=True)
+                try:
+                    data_baru = pd.DataFrame([{
+                        "Tanggal": tanggal,
+                        "Jam": jam,
+                        "Nama Meteran": nama,
+                        "Angka Meteran": float(angka_final),
+                        "Foto": fname
+                    }])
 
-        sukses = save_data(df)
+                    if os.path.exists(EXCEL_FILE):
+                        df_old = pd.read_excel(EXCEL_FILE)
+                    else:
+                        df_old = pd.DataFrame()
 
-        if sukses:
-            st.session_state.saved = True
-            st.success("Data tersimpan!")
-            time.sleep(1)
-            st.rerun()
-        else:
-            st.error("Gagal simpan! Tutup Excel jika terbuka.")
+                    df = pd.concat([df_old, data_baru], ignore_index=True)
 
-    except Exception as e:
-        st.error(f"Error: {e}")
-        st.stop()
-                # ================= VALIDASI =================
-               # ================= TAMPIL DATA =================
+                    save_with_lock(df)
+
+                    st.session_state.last_saved = unique_key
+
+                    st.success("Data tersimpan!")
+                    st.rerun()
+
+                except Exception as e:
+                    st.error(f"Gagal simpan: {e}")
+
+# ================= HISTORI =================
 if os.path.exists(EXCEL_FILE):
-    df = pd.read_excel(EXCEL_FILE, dtype=str)
+    df = pd.read_excel(EXCEL_FILE)
 
     if not df.empty:
         st.divider()
@@ -180,28 +195,38 @@ if os.path.exists(EXCEL_FILE):
 
         st.dataframe(df.iloc[::-1], use_container_width=True)
 
-        # ================= HAPUS DATA =================
+        # preview foto
+        for i, row in df.iloc[::-1].iterrows():
+            with st.expander(f"{row['Tanggal']} | {row['Nama Meteran']}"):
+                path = os.path.join(UPLOAD_FOLDER, row["Foto"])
+                if os.path.exists(path):
+                    st.image(path, width=300)
+
+        # ================= HAPUS MULTI =================
         st.divider()
-        st.subheader("🗑️ Hapus Data")
+        st.subheader("🗑️ Hapus Banyak Data")
 
         df_reset = df.reset_index()
 
-        selected_index = st.selectbox(
-            "Pilih data",
+        pilih = st.multiselect(
+            "Pilih data yang ingin dihapus",
             df_reset.index,
             format_func=lambda x: f"{df_reset.loc[x,'Tanggal']} | {df_reset.loc[x,'Nama Meteran']} | {df_reset.loc[x,'Angka Meteran']}"
         )
 
-        if st.button("❌ Hapus Data"):
-            try:
-                df = df.drop(selected_index)
-                save_data(df)
-                st.warning("Data berhasil dihapus!")
-                st.rerun()
-            except Exception as e:
-                st.error(f"Gagal hapus: {e}")
+        if st.button("❌ Hapus Data Terpilih"):
+            if len(pilih) == 0:
+                st.warning("Pilih data dulu!")
+            else:
+                try:
+                    df = df.drop(pilih)
+                    save_with_lock(df)
+                    st.success(f"{len(pilih)} data berhasil dihapus!")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Gagal hapus: {e}")
 
-        # ================= DOWNLOAD EXCEL =================
+        # ================= DOWNLOAD =================
         st.divider()
 
         output = io.BytesIO()
@@ -211,6 +236,5 @@ if os.path.exists(EXCEL_FILE):
         st.download_button(
             label="📥 Download Excel",
             data=output.getvalue(),
-            file_name="data_meteran.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            file_name="data_meteran.xlsx"
         )
