@@ -127,7 +127,47 @@ if files:
 
             save_clicked = st.button("✅ SIMPAN", key=f"save_{fname}")
 
-            if save_clicked and not st.session_state.saved:
+    # VALIDASI
+    if nama.strip() == "":
+        st.warning("Nama meteran wajib diisi!")
+        st.stop()
 
+    if angka_final.strip() == "":
+        st.warning("Angka kosong!")
+        st.stop()
+
+    if not angka_final.replace('.', '').isdigit():
+        st.warning("Format angka salah!")
+        st.stop()
+
+    try:
+        data_baru = pd.DataFrame([{
+            "Tanggal": tanggal,
+            "Jam": jam,
+            "Nama Meteran": nama,
+            "Angka Meteran": angka_final,
+            "Foto": fname
+        }])
+
+        if os.path.exists(EXCEL_FILE):
+            df_old = pd.read_excel(EXCEL_FILE, dtype=str)
+        else:
+            df_old = pd.DataFrame()
+
+        df = pd.concat([df_old, data_baru], ignore_index=True)
+
+        sukses = save_data(df)
+
+        if sukses:
+            st.session_state.saved = True
+            st.success("Data tersimpan!")
+            time.sleep(1)
+            st.rerun()
+        else:
+            st.error("Gagal simpan! Tutup Excel jika terbuka.")
+
+    except Exception as e:
+        st.error(f"Error: {e}")
+        st.stop()
                 # ================= VALIDASI =================
                
