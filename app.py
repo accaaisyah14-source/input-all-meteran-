@@ -26,6 +26,133 @@ EXCEL_FILE = "database_meteran.xlsx"
 UPLOAD_FOLDER = "uploads"
 tz_jkt = pytz.timezone('Asia/Jakarta')
 
+LIST_METERAN = [
+    "1. DEEPWELL 1 AQUADUCT SIPA",
+    "2. DEEPWELL 2 FISHPOND SIPA",
+    "3. DEEPWELL 3 AWANG-AWANG SIPA",
+    "4. STATIC WATER LEVEL (JTL)",
+    "5. DYNAMIC WATER LEVEL (AWG)",
+    "6. DEEPWELL 4 JATILANGKUNG PIPA",
+    "7. STATIC WATER LEVEL (JTL)",
+    "8. DYNAMIC WATER LEVEL (JTL)",
+    "9. DEEPWELL 5 RIVER SIPA",
+    "10. DEEPWELL 6 FRONT OFFICE SIPA",
+    "11. DEEPWELL 7 TEMPURAN SIPA",
+    "12. STATIC WATER LEVEL (TPR)",
+    "13. DYNAMIC WATER LEVEL (TPR)",
+    "14. DEEPWELL 1 AQUADUCT MBI",
+    "15. DEEPWELL 2 FISHPOND SIPA",
+    "16. DEEPWELL 3 AWANG-AWANG SIPA",
+    "17. DEEPWELL 4 JATILANGKUNG MBI",
+    "18. DEEPWELL 5 RIVER MBI",
+    "19. DEEPWELL 6 FRONT OFFICE MBI",
+    "20. DEEPWELL 7 TEMPURAN MBI",
+    "21. DEEPWELL STORAGE TANK",
+    "22. CATION 1",
+    "23. CATION 2",
+    "24. MM MIX TO PWT",
+    "25. FLOW TO PWT",
+    "26. AFTER ACF",
+    "27. SOFTENER OUTLET",
+    "28. MM MIX TO SWT",
+    "29. FLOW TO FWT",
+    "30. FWT TO CONSUMER",
+    "31. SOFT WATER TO CONSUMER",
+    "32. DEMIN WATER",
+    "33. BOILER MAKE UP WATER",
+    "34. CO2 COOLING WATER",
+    "35. NH3 EVAP CONDENSOR",
+    "36. ETHANOL MIXING WATER",
+    "37. CO2 SCRUBBER TANK",
+    "38. WWTP WATER CONS",
+    "39. SOFT WATER FOR CHAIN LUBRICANT",
+    "40. BOTTLE WASHER",
+    "41. CRATE WASHER",
+    "42. PASTEURIZER",
+    "43. FILLERS & VACUUM PUMPS",
+    "44. RACKING PLANT",
+    "45. SODA STATION",
+    "46. PACKAGING MAIN LINE",
+    "47. CELLAR FLOOR",
+    "48. CO2 FOAM CATCHER 1",
+    "49. CO2 FOAM CATCHER 2",
+    "50. FILTRATION & BREWHOUSE MAIN LINE",
+    "51. YEAST TANK",
+    "52. PVPP KIESELGUHR TANKS",
+    "53. COLD & HOT WATER TANKS",
+    "54. MAIN LABORATORY",
+    "55. SANITARY WATER MAIN LINE",
+    "56. FIRE FIGHTING",
+    "57. CORE TEAM WC",
+    "58. BOTTLING WC",
+    "59. FULL STORE",
+    "60. EMPTY STORE",
+    "61. FRONT OFFICE",
+    "62. PARKING LODGE",
+    "63. WELFARE + CLINIC",
+    "64. MUSHOLA",
+    "65. CANTEEN + PORTER LODGE",
+    "66. ENGINE ROOM WC",
+    "67. BREWHOUSE WC",
+    "68. SILO WC",
+    "69. BUNKER FLOW METER",
+    "70. BOILER 1 FUEL METER",
+    "71. BOILER 2 FUEL METER",
+    "72. FORKLIFT FUEL (PICK LIST)",
+    "73. CORRECTOR GAS METER",
+    "74. CANTEEN GAS METER",
+    "75. BOILER 1 STEAM METER",
+    "76. BOILER 1 FEED WATER METER",
+    "77. BOILER 2 STEAM METER",
+    "78. BOILER 2 FEED WATER METER",
+    "79. PACKAGING STEAM METER",
+    "80. PACKAGING CONDENSATE METER",
+    "81. BREWING STEAM METER",
+    "82. BREWING CONDENSATE METER",
+    "83. BOILER BLOWDOWN METER",
+    "84. CO2 RECUPERATION",
+    "85. STORAGE TANK 1 VOLUME",
+    "86. STORAGE TANK 2 VOLUME",
+    "87. PACKAGING TOTALIZER",
+    "88. BREWING TOTALIZER",
+    "89. CO2 PURCHASE",
+    "90. CO2 SOLD",
+    "91. CO2 BOTTLED",
+    "92. INCOMING CAUSTIC METER",
+    "93. PACKAGING CAUSTIC METER",
+    "94. BREWING CAUSTIC METER",
+    "95. WTP CAUSTIC METER",
+    "96. PASTEURIZER STEAM",
+    "97. BOTTLE WASHER",
+    "98. WK 1 STEAM METER",
+    "99. WK 2 STEAM METER",
+    "100. WTP STEAM METER",
+    "101. RACKING PLANT",
+    "102. WTP CAUSTIC METER",
+    "103. PDAM MBI",
+    "104. PDAM DEPAN",
+    "105. ACF 1 CHRIWA",
+    "106. ACF 2 CHRIWA",
+    "107. FWS CIP",
+    "108. FWS PROD",
+    "109. STEAM",
+    "110. STEAM TO PASTEUR",
+    "111. FW TO PASTEUR",
+    "112. STEAM CIP",
+    "113. STEAM MBI",
+    "114. STEAM BECIS",
+    "115. FACT CIP BMF",
+    "116. PROD ALDOX",
+    "117. FACT TANK II",
+    "118. SPRAY BALL MASTUN",
+    "119. SPRAY BALL WPOOL",
+    "120. STEAM BREWING",
+    "121. RAW",
+    "122. PWT",
+    "123. FWT",
+    "124. CO2 BALOON"
+]
+
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 # ================= SESSION =================
@@ -130,8 +257,14 @@ if files:
         with col2:
             tanggal = st.text_input("Tanggal", value=now.strftime("%d-%m-%Y"), key=f"tgl_{fname}")
             jam = st.text_input("Jam", value=now.strftime("%H:%M"), key=f"jam_{fname}")
-            nama = st.text_input("Nama Meteran", key=f"nama_{fname}")
-
+            nama = st.selectbox(
+                "Pilih Nama Meteran",
+                options=LIST_METERAN,
+                index=None,
+                placeholder="Ketik atau pilih nama meteran...",
+                key=f"nama_{fname}"
+            )
+            
             angka_final = st.text_input(
                 "Angka Meteran (Edit jika salah)",
                 value=str(angka),
@@ -141,8 +274,8 @@ if files:
             if st.button("✅ KONFIRMASI & SIMPAN", key=f"save_{fname}"):
 
                 # VALIDASI
-                if nama.strip() == "":
-                    st.warning("Nama meteran wajib diisi!")
+                if not nama:
+                    st.warning("Nama meteran wajib dipilih!")
                     st.stop()
 
                 if angka_final.strip() == "":
