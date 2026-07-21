@@ -193,17 +193,12 @@ if os.path.exists(EXCEL_FILE):
         st.divider()
         st.subheader("📊 Histori Pencatatan")
 
-        st.dataframe(df.iloc[::-1], use_container_width=True)
-
-        # preview foto
-        #for i, row in df.iloc[::-1].iterrows():
-            #with st.expander(f"{row['Tanggal']} | {row['Nama Meteran']}"):
-                #path = os.path.join(UPLOAD_FOLDER, row["Foto"])
-                #if os.path.exists(path):
-                    #st.image(path, width=300)
+        # Kolom Foto disembunyikan dari tabel
+        df_tampil = df.drop(columns=["Foto"], errors="ignore")
+        st.dataframe(df_tampil.iloc[::-1], use_container_width=True)
 
         # ================= HAPUS MULTI =================
-        st.divider()
+       st.divider()
         st.subheader("🗑️ Hapus Banyak Data")
 
         df_reset = df.reset_index()
@@ -211,7 +206,11 @@ if os.path.exists(EXCEL_FILE):
         pilih = st.multiselect(
             "Pilih data yang ingin dihapus",
             df_reset.index,
-            format_func=lambda x: f"{df_reset.loc[x,'Tanggal']} | {df_reset.loc[x,'Nama Meteran']} | {df_reset.loc[x,'Angka Meteran']}"
+            format_func=lambda x: (
+                f"{df_reset.loc[x, 'Tanggal']} | "
+                f"{df_reset.loc[x, 'Nama Meteran']} | "
+                f"{df_reset.loc[x, 'Angka Meteran']}"
+            )
         )
 
         if st.button("❌ Hapus Data Terpilih"):
@@ -227,11 +226,15 @@ if os.path.exists(EXCEL_FILE):
                     st.error(f"Gagal hapus: {e}")
 
         # ================= DOWNLOAD =================
-        st.divider()
+               st.divider()
 
         output = io.BytesIO()
+
+        # Kolom Foto juga dibuang dari file hasil download
+        df_download = df.drop(columns=["Foto"], errors="ignore")
+
         with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-            df.to_excel(writer, index=False)
+            df_download.to_excel(writer, index=False)
 
         st.download_button(
             label="📥 Download Excel",
