@@ -196,11 +196,11 @@ if os.path.exists(EXCEL_FILE):
         st.dataframe(df.iloc[::-1], use_container_width=True)
 
         # preview foto
-        for i, row in df.iloc[::-1].iterrows():
-            with st.expander(f"{row['Tanggal']} | {row['Nama Meteran']}"):
-                path = os.path.join(UPLOAD_FOLDER, row["Foto"])
-                if os.path.exists(path):
-                    st.image(path, width=300)
+        #for i, row in df.iloc[::-1].iterrows():
+            #with st.expander(f"{row['Tanggal']} | {row['Nama Meteran']}"):
+                #path = os.path.join(UPLOAD_FOLDER, row["Foto"])
+                #if os.path.exists(path):
+                    #st.image(path, width=300)
 
         # ================= HAPUS MULTI =================
         st.divider()
