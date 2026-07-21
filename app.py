@@ -198,7 +198,7 @@ if os.path.exists(EXCEL_FILE):
         st.dataframe(df_tampil.iloc[::-1], use_container_width=True)
 
         # ================= HAPUS MULTI =================
-       st.divider()
+        st.divider()
         st.subheader("🗑️ Hapus Banyak Data")
 
         df_reset = df.reset_index()
@@ -226,14 +226,14 @@ if os.path.exists(EXCEL_FILE):
                     st.error(f"Gagal hapus: {e}")
 
         # ================= DOWNLOAD =================
-               st.divider()
+        st.divider()
 
         output = io.BytesIO()
 
-        # Kolom Foto juga dibuang dari file hasil download
+        # Kolom Foto dibuang dari file hasil download
         df_download = df.drop(columns=["Foto"], errors="ignore")
 
-        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+        with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
             df_download.to_excel(writer, index=False)
 
         st.download_button(
