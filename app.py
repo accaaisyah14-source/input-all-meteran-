@@ -197,7 +197,9 @@ def process_image(file_bytes):
     OCR hanya dijalankan satu kali untuk file yang sama.
     Saat pengguna memilih nama atau mengedit angka, hasil OCR diambil dari cache.
     """
-    image = Image.open(io.BytesIO(file_bytes)).convert("RGB")
+    with Image.open(io.BytesIO(file_bytes)) as opened_image:
+        image = opened_image.convert("RGB").copy()
+
     image.thumbnail((800, 800))
 
     image_np = np.array(image)
@@ -311,7 +313,7 @@ if uploaded_file is not None:
     col1, col2 = st.columns([1, 1])
 
     with col1:
-        st.image(img, caption="Foto Meteran", use_container_width=True)
+        st.image(img, caption="Foto Meteran", use_column_width=True)
 
     with col2:
         tanggal = st.text_input(
